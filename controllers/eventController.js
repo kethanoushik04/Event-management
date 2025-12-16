@@ -57,20 +57,34 @@ exports.updateEvent = async (req, res) => {
 
     const logsToCreate = [];
 
-    // compare profiles (arrays of ObjectId strings). We'll compare as string sets.
-    const oldProfiles = (event.profiles || []).map(String);
-    const newProfiles = (profiles || []).map(String);
-    const profilesChanged = (oldProfiles.length !== newProfiles.length) ||
-      oldProfiles.some(id => !newProfiles.includes(id));
-    if (profilesChanged) {
-      logsToCreate.push({
-        event: event._id,
-        field: 'profiles',
-        previousValue: oldProfiles,
-        newValue: newProfiles
-      });
-      event.profiles = profiles;
-    }
+    // ---- PROFILE CHANGE LOG (FIXED) ----
+
+// Old profile IDs
+const oldProfileIds = (event.profiles || []).map(String);
+const newProfileIds = (profiles || []).map(String);
+
+// Check if changed
+const profilesChanged =
+  oldProfileIds.length !== newProfileIds.length ||
+  oldProfileIds.some(id => !newProfileIds.includes(id));
+
+if (profilesChanged) {
+  // Fetch profile names
+  const oldProfileDocs = await Profile.find({ _id: { $in: oldProfileIds } });
+  const newProfileDocs = await Profile.find({ _id: { $in: newProfileIds } });
+
+  const oldProfileNames = oldProfileDocs.map(p => p.name);
+  const newProfileNames = newProfileDocs.map(p => p.name);
+
+  logsToCreate.push({
+    event: event._id,
+    field: "profiles",
+    previousValue: oldProfileNames,
+    newValue: newProfileNames
+  });
+
+  event.profiles = profiles;
+}
 
     if (timezone && timezone !== event.timezone) {
       logsToCreate.push({
@@ -109,12 +123,13 @@ exports.updateEvent = async (req, res) => {
 
     await event.save();
     if (logsToCreate.length) {
+      console.log("Logs to create:", logsToCreate);
       await EventLog.insertMany(logsToCreate.map(l => ({ ...l, editedAt: new Date() })));
     }
 
     const updated = await Event.findById(eventId).populate('profiles', 'name');
     res.json({ event: updated, logsCreated: logsToCreate.length });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    res.status(500).json({ message: err.message });
+  }
 };
