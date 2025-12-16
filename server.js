@@ -13,7 +13,7 @@ const allowedOrigins = [
 
 const app = express();
 
-app.use(cors(allowedOrigins));
+app.use(cors({origin:allowedOrigins,credentials: true}));
 app.use(express.json());
 
 app.get("/",(req,res)=>{
