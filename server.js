@@ -6,10 +6,19 @@ const connectDB = require("./config/db");
 // dotenv.config();
 connectDB();
 
+const allowedOrigins = [
+  "http://localhost:5173", // Vite
+  "https://event-management-web-ivory.vercel.app/"
+];
+
 const app = express();
 
-app.use(cors());
+app.use(cors(allowedOrigins));
 app.use(express.json());
+
+app.get("/",(req,res)=>{
+  res.send("Kethan Gaikwad");
+})
 
 
 app.use('/api/profiles', require('./routes/profileRoutes'));
